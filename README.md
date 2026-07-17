@@ -1,11 +1,12 @@
 # 👑 chess-rs | Xadrez Multiplayer em Tempo Real
 
-[![Backend CI (Rust)](https://github.com/marcelo-soares/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelo-soares/chess-rs/actions/workflows/ci.yml)
-[![Frontend CI (React/TS)](https://github.com/marcelo-soares/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelo-soares/chess-rs/actions/workflows/ci.yml)
-[![Language](https://img.shields.io/badge/language-Rust-orange.svg)](https://www.rust-lang.org/)
-[![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-blue.svg)](https://react.dev/)
+<p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/Português-🇧🇷-3178c6?style=for-the-badge" alt="Português"/></a>
+  <a href="README.en.md"><img src="https://img.shields.io/badge/English-🇺🇸-grey?style=for-the-badge" alt="English"/></a>
+</p>
 
-> **Read this documentation in English:** [README.en.md](README.en.md)
+[![Backend CI (Rust)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
+[![Frontend CI (React/TS)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
 
 Este é um projeto de xadrez multiplayer em tempo real, construído com foco em alta performance, concorrência segura e arquitetura de sistemas robusta. O backend é desenvolvido inteiramente em **Rust (com a biblioteca Axum)** e o frontend utiliza **React com TypeScript e TailwindCSS v4**.
 
