@@ -1,160 +1,189 @@
-# 👑 chess-rs | Xadrez Multiplayer em Tempo Real
+# chess-rs
 
-<p align="center">
-  <a href="README.md"><img src="https://img.shields.io/badge/Português-🇧🇷-3178c6?style=for-the-badge" alt="Português"/></a>
-  <a href="README.en.md"><img src="https://img.shields.io/badge/English-🇺🇸-grey?style=for-the-badge" alt="English"/></a>
-</p>
+Xadrez multiplayer em tempo real com servidor autoritativo em **Rust** (`axum` + `tokio` + `shakmaty`) e cliente em **React + TypeScript**.
 
-[![Backend CI (Rust)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
-[![Frontend CI (React/TS)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
+[Português](README.md) · [English](README.en.md)
 
-Este é um projeto de xadrez multiplayer em tempo real, construído com foco em alta performance, concorrência segura e arquitetura de sistemas robusta. O backend é desenvolvido inteiramente em **Rust (com a biblioteca Axum)** e o frontend utiliza **React com TypeScript e TailwindCSS v4**.
+[![CI](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A aplicação foi projetada para demonstrar boas práticas de programação concorrente em Rust, servindo como uma excelente referência de estudos para desenvolvedores que buscam aprofundar seus conhecimentos no ecossistema Rust assíncrono.
+<!-- Adicione aqui uma captura de tela da partida ativa, ex.: ![chess-rs](docs/preview.png) -->
 
 ---
 
-## 🚀 Como Executar o Projeto Localmente
+## Visão Geral
 
-O projeto está totalmente conteinerizado utilizando o **Docker** e o **Docker Compose**. O gerenciamento do ambiente é feito através de um `Makefile` na raiz.
+O `chess-rs` foi projetado para demonstrar concorrência segura em Rust, validação autoritativa de regras no servidor e entrega de produção em container mínimo. Em vez de compartilhar estado mutável atrás de múltiplos locks, todo o estado de saguão, desafios e partidas vive isolado dentro de um único ator assíncrono no Tokio.
 
-### Pré-requisitos
-Certifique-se de ter instalado em sua máquina:
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- [Make](https://www.gnu.org/software/make/) (opcional, mas recomendado)
-
-### Inicialização Rápida
-
-1. **Subir os serviços (Backend + Frontend)**:
-   ```bash
-   make dev
-   ```
-   *Isso compilará o backend em Rust dentro do contêiner e iniciará o servidor de desenvolvimento do Vite.*
-
-2. **Acessar a Aplicação**:
-   - Abra o navegador em: [http://localhost:5173](http://localhost:5173)
-   - O backend rodará na porta `8080` (WebSocket em `ws://localhost:8080/ws`).
-
-3. **Parar os contêineres**:
-   ```bash
-   make down
-   ```
-
-4. **Limpar caches e volumes do Docker**:
-   ```bash
-   make clean
-   ```
+- **Saguão e pareamento:** entrada com nickname único (case-insensitive), lista de jogadores online em tempo real, envio/recusa/aceite de desafios e chat de saguão e de partida.
+- **Motor autoritativo:** validação completa de lances via `shakmaty` (roque padrão UCI, *en passant*, promoção com escolha opcional e detecção de xeque-mate/empates).
+- **Relógio no servidor:** controle de tempo de 5 minutos por jogador gerenciado no backend com resolução de 250 ms; o relógio só inicia após o primeiro lance das brancas.
+- **Entrega em binário único:** em produção, o próprio servidor Rust serve os arquivos estáticos compilados do frontend e faz o upgrade de WebSocket na mesma origem (`/ws`).
 
 ---
 
-## 🏗️ Arquitetura do Sistema
+## Arquitetura
 
+```mermaid
+flowchart LR
+    subgraph Browser["Cliente (React 19 + chess.js)"]
+        UI[Interface & Tabuleiro]
+        WS[useConnection<br/>backoff exponencial]
+        UI <--> WS
+    end
+
+    subgraph Server["chess-backend (Tokio / Axum)"]
+        Session["session.rs<br/>leitor + escritor + heartbeat"]
+        Hub{{"hub.rs<br/>ator único (estado + salas)"}}
+        Game["game.rs<br/>shakmaty + relógios"]
+        Session -- "Command (mpsc 1024)" --> Hub
+        Hub -- "Arc&lt;str&gt; (mpsc 64)" --> Session
+        Hub --- Game
+    end
+
+    WS <-- "WebSocket JSON (/ws)" --> Session
 ```
-  ┌─────────────────────────────────────────────────────────┐
-  │                        FRONTEND                         │
-  │            React + TypeScript + Tailwind v4             │
-  └────────────────────────────┬────────────────────────────┘
-                               │
-                               │ Conexão WebSocket (Tempo Real)
-                               ▼
-  ┌─────────────────────────────────────────────────────────┐
-  │                        BACKEND                          │
-  │                     Rust (Axum WS)                      │
-  ├────────────────────────────┼────────────────────────────┤
-  │      ESTADO GLOBAL         │     MOTOR DE XADREZ        │
-  │   Arc<RwLock<AppState>>    │        Shakmaty            │
-  └────────────────────────────┴────────────────────────────┘
-```
 
-### Backend (Rust)
-O servidor atua como um hub central assíncrono para os jogadores do saguão.
-- **Axum**: Utilizado para gerenciar a camada de transporte HTTP e atualização de protocolo para WebSockets (`axum::extract::ws`).
-- **Tokio**: O runtime assíncrono que impulsiona a execução concorrente.
-- **Shakmaty**: Biblioteca matemática rigorosa em Rust para validação de movimentos, estados de jogo (xeque, xeque-mate, empates, etc.) e parse de FEN (Forsyth-Edwards Notation).
-- **Gerenciamento de Estado**: Estruturas globais protegidas por ponteiros inteligentes de concorrência (`Arc<RwLock<T>>`) para permitir que conexões paralelas leiam e modifiquem salas de jogos de forma thread-safe.
+### Decisões de Engenharia
 
-### Frontend (React/TypeScript)
-- Interface responsiva com design moderno e tema escuro.
-- **react-chessboard**: Renderização do tabuleiro e suporte a drag-and-drop de peças.
-- **chess.js**: Sincronização e animação do fluxo de movimentos no lado do cliente.
-- **Framer Motion**: Micro-animações e transições de tela suaves.
+1. **Ator único sem locks (`hub.rs`)**
+   Saguão, desafios pendentes e salas ativas pertencem exclusivamente à task do ator. As conexões WebSocket não acessam estado compartilhado com `Mutex` ou `RwLock`, eliminando deadlocks por ordem de locks e contenção entre leitores e escritores. O ator nunca faz `.await` em I/O de rede: apenas serializa cada mensagem uma única vez em `Arc<str>` e envia via `try_send`.
+
+2. **Backpressure explícito em vez de filas infinitas (`session.rs`)**
+   Cada sessão possui uma caixa de saída limitada a `64` quadros e a fila de entrada do ator é limitada a `1024` comandos. Se um cliente ficar lento ou parar de drenar o socket, o servidor descarta quadros excedentes e registra o evento em log, protegendo a latência das demais partidas e a memória do processo.
+
+3. **Domínio puro e determinístico (`game.rs`)**
+   A lógica de xadrez e relógios é síncrona e recebe `Instant` explicitamente como parâmetro. Isso permite testar transições de tempo, bandeira e lances atrasados de forma determinística e instantânea, sem `sleep` nos testes.
+
+4. **Relógio autoritativo no servidor**
+   O cliente exibe uma contagem regressiva fluida localmente, mas apenas o servidor decide quando o tempo acabou. Um tick de `250 ms` no ator verifica partidas expiradas e um lance que chega após o estouro do relógio perde por tempo em vez de ser aplicado.
+
+5. **Resiliência de rede e limites de frame**
+   Cada sessão envia pings de heartbeat a cada `15 s` e encerra conexões silenciosas após `45 s` sem atividade. Quadros recebidos são limitados a `16 KiB`. Em desconexões limpas ou abruptas, o ator remove a sala, devolve o oponente ao saguão e notifica com `OpponentDisconnected`.
 
 ---
 
-## 🦀 Mergulho Técnico em Rust (Foco em Estudos)
+## Ciclo de uma Partida
 
-Se você está estudando Rust, preste atenção em como estes conceitos fundamentais são aplicados na pasta `/backend`:
+```mermaid
+sequenceDiagram
+    participant A as Jogador A
+    participant H as Hub (Ator)
+    participant B as Jogador B
 
-### 1. Estado Concorrente com `Arc<RwLock>`
-Para compartilhar o estado dos jogadores e das salas de jogos entre todas as conexões assíncronas do WebSocket, utilizamos:
-```rust
-#[derive(Clone)]
-struct AppState {
-    players: Arc<RwLock<HashMap<String, LobbyPlayer>>>,
-    rooms: Arc<RwLock<HashMap<String, Room>>>,
-}
-```
-Isso garante leituras assíncronas concorrentes de forma ultra-rápida, bloqueando a escrita apenas quando um jogador realiza um movimento ou entra/sai do saguão.
-
-### 2. Mensagens WebSocket Fortemente Tipadas
-Usamos as poderosas `enum`s do Rust em conjunto com o `serde` para deserializar mensagens de forma segura. Se o frontend enviar uma mensagem inválida, o Rust a rejeitará imediatamente em tempo de compilação/deserialização:
-```rust
-#[derive(Deserialize)]
-#[serde(tag = "type")]
-enum ClientMessage {
-    ClaimNickname { nickname: String },
-    SendChallenge { to_nickname: String },
-    AcceptChallenge { challenger_nickname: String },
-    DeclineChallenge { challenger_nickname: String },
-    MakeMove { room_id: String, from: String, to: String, promotion: Option<String> },
-    QuitGame { room_id: String },
-}
-```
-
-### 3. Integração com Shakmaty (Motor de Regras)
-Toda a lógica e regras do xadrez não são recriadas manualmente, mas validadas com a biblioteca `shakmaty` que garante corretude teórica matemática:
-```rust
-// Validação de movimentos legítimos no backend
-let mut chess = shakmaty::Chess::from_setup(setup, shakmaty::CastlingMode::Standard)
-    .map_err(|_| "Configuração inválida")?;
-
-let legal_moves = chess.legals();
-// Executa o movimento se ele pertencer ao conjunto de movimentos legítimos
+    A->>H: ClaimNickname("ana")
+    H-->>A: NicknameAccepted + LobbyUpdate
+    B->>H: ClaimNickname("bia")
+    H-->>A: LobbyUpdate
+    H-->>B: LobbyUpdate
+    B->>H: SendChallenge("ana")
+    H-->>A: ChallengeReceived
+    A->>H: AcceptChallenge
+    H-->>A: ChallengeAccepted (pretas)
+    H-->>B: ChallengeAccepted (brancas)
+    B->>H: MakeMove (e2 -> e4)
+    H-->>A: MoveResponse (FEN + relógios)
+    H-->>B: MoveResponse (FEN + relógios)
+    Note over H: Tick 250 ms verifica relógios e emite GameState ao expirar
 ```
 
 ---
 
-## 🛠️ Contribuindo com o Projeto
+## Protocolo WebSocket
 
-Contribuições são extremamente bem-vindas! Este projeto possui automações rigorosas de Integração Contínua (CI) via **GitHub Actions** para garantir a qualidade de cada alteração.
+Envelope JSON `{ "type": string, "payload": object }` definido em [protocol.rs](backend/src/protocol.rs) e espelhado em [protocol.ts](frontend/src/protocol.ts).
 
-### Como Contribuir:
-
-1. Faça um Fork do repositório.
-2. Crie uma branch com sua feature: `git checkout -b feature/minha-feature`.
-3. Garanta que seu código passa nas validações locais de estilo e testes:
-   - **Backend**:
-     ```bash
-     cd backend
-     cargo fmt --check
-     cargo clippy --all-targets -- -D warnings
-     cargo test
-     ```
-   - **Frontend**:
-     ```bash
-     cd frontend
-     npm run lint
-     npm run build
-     ```
-4. Faça commit de suas alterações: `git commit -m "feat: adiciona nova funcionalidade"` (siga o padrão [Conventional Commits](https://www.conventionalcommits.org/)).
-5. Envie para sua branch: `git push origin feature/minha-feature`.
-6. Abra um Pull Request detalhado descrevendo sua implementação.
+| Direção | Mensagens |
+| :--- | :--- |
+| **Cliente → Servidor** | `Ping`, `ClaimNickname`, `ChatMessage`, `SendChallenge`, `AcceptChallenge`, `DeclineChallenge`, `MakeMove` (`promotion` opcional), `ResetGame`, `QuitGame` |
+| **Servidor → Cliente** | `ConnectionEstablished`, `Pong`, `NicknameAccepted`, `NicknameRejected`, `LobbyUpdate`, `ChallengeReceived`, `ChallengeDeclined`, `ChallengeAccepted`, `MoveResponse`, `GameState`, `GameExited`, `OpponentDisconnected`, `ChatMessageEcho`, `Error` |
 
 ---
 
-## 👨‍💻 Autor
+## Como Executar
 
-Desenvolvido por **Marcelo Soares**.  
-Fique à vontade para se conectar comigo no LinkedIn:  
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Marcelo%20Soares-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/marcelosoares-dev/)
+### Produção (Docker — comando único)
+
+```bash
+docker compose up --build
+```
+
+Acesse `http://localhost:8080`. O build multi-stage compila o frontend com Node 22, cacheia as dependências Rust com `cargo-chef` e gera uma imagem final `distroless/cc` não-root, com sistema de arquivos `read_only`, `cap_drop: [ALL]` e `HEALTHCHECK` nativo via `/health`.
+
+### Desenvolvimento com Hot Reload
+
+```bash
+make dev
+```
+
+Sobe o Vite em `http://localhost:5173` (com proxy para `/ws` e `/health`) e o backend com `cargo-watch` em `:8080`.
+
+### Execução Nativa (sem Docker)
+
+```bash
+# 1. Compilar o frontend
+npm --prefix frontend ci && npm --prefix frontend run build
+
+# 2. Subir o servidor servindo o build estático
+STATIC_DIR=frontend/dist cargo run --manifest-path backend/Cargo.toml
+```
+
+### Variáveis de Ambiente
+
+| Variável | Padrão | Descrição |
+| :--- | :--- | :--- |
+| `BIND_ADDR` | `0.0.0.0:8080` | Endereço e porta de escuta HTTP/WebSocket |
+| `STATIC_DIR` | _(vazio)_ | Diretório de arquivos estáticos servido em fallback SPA |
+| `RUST_LOG` | `info` | Nível de log do `tracing-subscriber` |
+
+---
+
+## Qualidade e Testes
+
+```bash
+make check
+```
+
+Executa toda a esteira de verificação local:
+- `cargo fmt --check` e `cargo clippy --all-targets -- -D warnings`
+- `cargo test` (`15` testes unitários de protocolo e domínio + `4` testes de integração WebSocket ponta a ponta)
+- `npm run lint` (ESLint + TypeScript estrito) e `npm run build`
+
+O workflow em [.github/workflows/ci.yml](.github/workflows/ci.yml) executa as mesmas validações e verifica o build da imagem Docker em todo push e pull request.
+
+---
+
+## Estrutura do Repositório
+
+```text
+.
+├── backend/
+│   ├── src/
+│   │   ├── config.rs      # Leitura de variáveis de ambiente
+│   │   ├── protocol.rs    # Contrato WebSocket tipado (serde)
+│   │   ├── game.rs        # Regras de xadrez, relógios e bandeira
+│   │   ├── hub.rs         # Ator único: saguão, desafios e salas
+│   │   ├── session.rs     # Ciclo de vida do WebSocket e heartbeat
+│   │   ├── server.rs      # Rotas Axum (/health, /ws, estáticos)
+│   │   └── main.rs        # Bootstrap, probe de healthcheck e shutdown gracioso
+│   └── tests/
+│       └── match_flow.rs  # Testes de integração via WebSocket real
+├── frontend/
+│   └── src/
+│       ├── components/    # Board, MatchView, Lobby, Welcome, Chat, Header, Dialog, Toast
+│       ├── hooks/         # useConnection (reconexão com backoff exponencial)
+│       ├── lib/           # Helpers de domínio sobre chess.js
+│       ├── state/         # Reducer central com rollback otimista
+│       ├── i18n.ts        # Dicionário PT / EN
+│       └── index.css      # Design system com tokens e grid de 8 px
+├── Dockerfile             # Build multi-stage (Node -> cargo-chef -> distroless)
+├── docker-compose.yml     # Stack de produção endurecida
+├── docker-compose.dev.yml # Stack de desenvolvimento com hot reload
+└── Makefile               # Atalhos up, down, dev, check, clean
+```
+
+---
+
+## Licença
+
+Distribuído sob a licença [MIT](LICENSE).
