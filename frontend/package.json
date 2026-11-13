@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "chess-rs-web",
   "private": true,
   "version": "1.0.0",
   "author": "Marcelo Soares (https://www.linkedin.com/in/marcelosoares-dev/)",
@@ -12,14 +12,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
     "chess.js": "^1.4.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
     "react-chessboard": "^5.10.0",
-    "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.3"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
