@@ -7,7 +7,7 @@ Real-time multiplayer chess with an authoritative **Rust** server (`axum` + `tok
 [![CI](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<!-- Add a screenshot of an active match here, e.g. ![chess-rs](docs/preview.png) -->
+![chess-rs](docs/preview.png)
 
 ---
 

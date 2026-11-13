@@ -7,7 +7,7 @@ Xadrez multiplayer em tempo real com servidor autoritativo em **Rust** (`axum` +
 [![CI](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/marcelosoares-dev/chess-rs/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<!-- Adicione aqui uma captura de tela da partida ativa, ex.: ![chess-rs](docs/preview.png) -->
+![chess-rs](docs/preview.png)
 
 ---
 
