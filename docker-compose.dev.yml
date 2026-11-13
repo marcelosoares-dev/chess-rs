@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - cargo_registry:/usr/local/cargo/registry
+      - cargo_target:/app/target
+    environment:
+      RUST_LOG: debug
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      WATCHPACK_POLLING: "true"
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+
+volumes:
+  cargo_registry:
+  cargo_target:

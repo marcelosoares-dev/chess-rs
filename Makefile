@@ -1,11 +1,20 @@
-.PHONY: dev build down clean
+.PHONY: up down dev check clean
 
-dev:
-	docker compose up -d --build
+up:
+	docker compose up --build -d
 
 down:
 	docker compose down
 
+dev:
+	docker compose -f docker-compose.dev.yml up --build
+
+check:
+	cargo fmt --manifest-path backend/Cargo.toml --check
+	cargo clippy --manifest-path backend/Cargo.toml --all-targets -- -D warnings
+	cargo test --manifest-path backend/Cargo.toml
+	npm --prefix frontend run lint
+	npm --prefix frontend run build
+
 clean:
-	docker compose down -v
-	docker system prune -f
+	docker compose down -v --remove-orphans
