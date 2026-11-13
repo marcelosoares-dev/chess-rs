@@ -102,13 +102,18 @@ Envelope JSON `{ "type": string, "payload": object }` definido em [protocol.rs](
 
 ## Como Executar
 
-### Produção (Docker — comando único)
+```bash
+git clone https://github.com/marcelosoares-dev/chess-rs.git
+cd chess-rs
+```
+
+### Localmente com Docker (comando único)
 
 ```bash
 docker compose up --build
 ```
 
-Acesse `http://localhost:8080`. O build multi-stage compila o frontend com Node 22, cacheia as dependências Rust com `cargo-chef` e gera uma imagem final `distroless/cc` não-root, com sistema de arquivos `read_only`, `cap_drop: [ALL]` e `HEALTHCHECK` nativo via `/health`.
+Acesse `http://localhost:8080` em **duas abas do navegador** com nicknames diferentes para simular uma partida completa. O build multi-stage compila o frontend com Node 22, cacheia as dependências Rust com `cargo-chef` e gera uma imagem final `distroless/cc` não-root, com sistema de arquivos `read_only`, `cap_drop: [ALL]` e `HEALTHCHECK` nativo via `/health`.
 
 ### Desenvolvimento com Hot Reload
 
@@ -120,6 +125,8 @@ Sobe o Vite em `http://localhost:5173` (com proxy para `/ws` e `/health`) e o ba
 
 ### Execução Nativa (sem Docker)
 
+Requer **Rust 1.85+** e **Node.js 22+**:
+
 ```bash
 # 1. Compilar o frontend
 npm --prefix frontend ci && npm --prefix frontend run build
@@ -127,6 +134,16 @@ npm --prefix frontend ci && npm --prefix frontend run build
 # 2. Subir o servidor servindo o build estático
 STATIC_DIR=frontend/dist cargo run --manifest-path backend/Cargo.toml
 ```
+
+### Deploy em Servidor (VPS / Nuvem)
+
+Para rodar em segundo plano em qualquer servidor Linux com Docker:
+
+```bash
+docker compose up -d --build
+```
+
+A aplicação escuta na porta `8080` (ajustável via `BIND_ADDR` ou mapeamento no `docker-compose.yml`). Caso publique atrás de um proxy reverso com HTTPS (Nginx, Caddy, Traefik ou Cloudflare), certifique-se de repassar os cabeçalhos de upgrade de WebSocket (`Upgrade` e `Connection`) para `/ws` — o cliente detecta HTTPS automaticamente e conecta via `wss://`.
 
 ### Variáveis de Ambiente
 

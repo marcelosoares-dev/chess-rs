@@ -102,13 +102,18 @@ JSON envelope `{ "type": string, "payload": object }` defined in [protocol.rs](b
 
 ## Running
 
-### Production (Docker — single command)
+```bash
+git clone https://github.com/marcelosoares-dev/chess-rs.git
+cd chess-rs
+```
+
+### Locally with Docker (single command)
 
 ```bash
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. The multi-stage build compiles the frontend with Node 22, caches Rust dependencies with `cargo-chef`, and produces a non-root `distroless/cc` image running with a `read_only` root filesystem, `cap_drop: [ALL]`, and a native `HEALTHCHECK` against `/health`.
+Open `http://localhost:8080` in **two browser tabs** with different nicknames to play a full match. The multi-stage build compiles the frontend with Node 22, caches Rust dependencies with `cargo-chef`, and produces a non-root `distroless/cc` image running with a `read_only` root filesystem, `cap_drop: [ALL]`, and a native `HEALTHCHECK` against `/health`.
 
 ### Development (Hot Reload)
 
@@ -120,6 +125,8 @@ Starts Vite at `http://localhost:5173` (proxying `/ws` and `/health`) alongside 
 
 ### Native (without Docker)
 
+Requires **Rust 1.85+** and **Node.js 22+**:
+
 ```bash
 # 1. Build the frontend
 npm --prefix frontend ci && npm --prefix frontend run build
@@ -127,6 +134,16 @@ npm --prefix frontend ci && npm --prefix frontend run build
 # 2. Run the backend serving the static bundle
 STATIC_DIR=frontend/dist cargo run --manifest-path backend/Cargo.toml
 ```
+
+### Deploying Elsewhere (VPS / Cloud)
+
+To run detached on any Linux host with Docker:
+
+```bash
+docker compose up -d --build
+```
+
+The service listens on port `8080` (configurable via `BIND_ADDR` or port mapping in `docker-compose.yml`). When running behind an HTTPS reverse proxy (Nginx, Caddy, Traefik, or Cloudflare), ensure WebSocket upgrade headers (`Upgrade` and `Connection`) are forwarded on `/ws` — the client automatically switches to `wss://` over HTTPS.
 
 ### Environment Variables
 
